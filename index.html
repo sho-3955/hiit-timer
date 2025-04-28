@@ -567,6 +567,12 @@
                         updateTotalTimeDisplay(remainingTotalSeconds);
                     }
                     
+                    // モバイルデバイスではAudioContextが停止状態になることがあるため、毎回チェック
+                    if (audioContext && audioContext.state === 'suspended') {
+                        console.log('Trying to resume AudioContext in timer...');
+                        audioContext.resume().catch(e => console.error('Resume failed:', e));
+                    }
+                    
                     // 10の倍数の時に音を鳴らす
                     if (timeLeft % 10 === 0 && timeLeft > 0) {
                         playBeep();
@@ -746,10 +752,25 @@
             }
         }
 
+        // audioContextが一時停止状態の場合は再開する
+        async function resumeAudioContext() {
+            if (audioContext && audioContext.state === 'suspended') {
+                try {
+                    await audioContext.resume();
+                    console.log('AudioContext resumed from suspended state');
+                } catch (e) {
+                    console.error('Failed to resume AudioContext:', e);
+                }
+            }
+        }
+
         function playBeep() {
             if (!audioContext) return;
             
             try {
+                // 一時停止状態なら再開
+                resumeAudioContext();
+                
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
                 
@@ -771,6 +792,9 @@
             if (!audioContext) return;
             
             try {
+                // 一時停止状態なら再開
+                resumeAudioContext();
+                
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
                 
@@ -913,15 +937,27 @@
 
         // 初期化処理
         function initialize() {
-            // タップやクリックでオーディオを有効化するためのイベントリスナーを追加
+            // イベントリスナー登録でユーザー操作時に音声を有効化
             document.addEventListener('click', function() {
                 initAudio();
-            }, { once: true });
+                // 音声コンテキストが一時停止状態なら再開する
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        console.log('AudioContext resumed on click');
+                    }).catch(e => console.error('Resume failed on click:', e));
+                }
+            });
             
-            // タッチデバイス用のイベントリスナーも追加
+            // タッチデバイス用のイベントリスナー
             document.addEventListener('touchstart', function() {
                 initAudio();
-            }, { once: true });
+                // 音声コンテキストが一時停止状態なら再開する
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        console.log('AudioContext resumed on touch');
+                    }).catch(e => console.error('Resume failed on touch:', e));
+                }
+            });
             
             // 保存されている設定があれば読み込む
             loadSettings();
@@ -1061,6 +1097,12 @@
                     if (remainingTotalSeconds > 0) {
                         remainingTotalSeconds--;
                         updateTotalTimeDisplay(remainingTotalSeconds);
+                    }
+                    
+                    // モバイルデバイスではAudioContextが停止状態になることがあるため、毎回チェック
+                    if (audioContext && audioContext.state === 'suspended') {
+                        console.log('Trying to resume AudioContext in rest timer...');
+                        audioContext.resume().catch(e => console.error('Resume failed:', e));
                     }
                     
                     // 10の倍数の時に音を鳴らす
