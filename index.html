@@ -427,6 +427,9 @@
         let beepSound = null;
         let completeSound = null;
         let useAudioElement = true; // Audio要素を使用するフラグ
+        let pendingAudioInit = false; // 音声初期化の保留フラグ
+        let audioQueue = []; // 音声再生キュー
+        let isAudioProcessing = false; // 音声処理中フラグ
 
         const timerDisplay = document.getElementById('timer');
         const startBtn = document.getElementById('startBtn');
@@ -545,8 +548,20 @@
                     // サイレントモードでも再生できるように設定
                     beepSound.setAttribute('playsinline', '');
                     beepSound.setAttribute('webkit-playsinline', '');
-                    // iOSでは自動再生が制限されるため、ユーザー操作後にロードする
+                    document.body.appendChild(beepSound);
+                    
+                    // iOS Safari対応のために事前にロード
                     beepSound.load();
+                    // 無音再生を試行してユーザージェスチャーフラグを設定
+                    beepSound.volume = 0.01;
+                    beepSound.play().then(() => {
+                        beepSound.pause();
+                        beepSound.currentTime = 0;
+                        beepSound.volume = 1.0;
+                        console.log('Beep sound preloaded');
+                    }).catch(e => {
+                        console.warn('Beep preload failed:', e);
+                    });
                 }
                 
                 if (!completeSound) {
@@ -555,13 +570,21 @@
                     // サイレントモードでも再生できるように設定
                     completeSound.setAttribute('playsinline', '');
                     completeSound.setAttribute('webkit-playsinline', '');
-                    // iOSでは自動再生が制限されるため、ユーザー操作後にロードする
+                    document.body.appendChild(completeSound);
+                    
+                    // iOS Safari対応のために事前にロード
                     completeSound.load();
+                    // 無音再生を試行
+                    completeSound.volume = 0.01;
+                    completeSound.play().then(() => {
+                        completeSound.pause();
+                        completeSound.currentTime = 0;
+                        completeSound.volume = 1.0;
+                        console.log('Complete sound preloaded');
+                    }).catch(e => {
+                        console.warn('Complete preload failed:', e);
+                    });
                 }
-                
-                // 音声ファイルのプリロード
-                document.body.appendChild(beepSound);
-                document.body.appendChild(completeSound);
                 
                 console.log('Audio elements initialized');
             } catch (e) {
@@ -572,7 +595,10 @@
 
         // AudioContextを初期化する関数
         function initAudio() {
+            if (pendingAudioInit) return;
+            
             if (!audioInitialized) {
+                pendingAudioInit = true;
                 try {
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
                     audioInitialized = true;
@@ -580,10 +606,30 @@
                     
                     // Audio要素も初期化
                     initAudioElements();
+                    
+                    // iOS SafariのWebAudioの初期化
+                    if (audioContext.state === 'suspended') {
+                        audioContext.resume().then(() => {
+                            console.log('AudioContext resumed');
+                            pendingAudioInit = false;
+                        });
+                    } else {
+                        pendingAudioInit = false;
+                    }
                 } catch (e) {
                     console.error('AudioContext initialization failed:', e);
                     // Web Audio APIが使えなくても、Audio要素は試す
                     initAudioElements();
+                    pendingAudioInit = false;
+                }
+            } else {
+                // 既に初期化済みの場合はSuspendedかどうか確認
+                if (audioContext && audioContext.state === 'suspended') {
+                    pendingAudioInit = true;
+                    audioContext.resume().then(() => {
+                        console.log('AudioContext resumed');
+                        pendingAudioInit = false;
+                    });
                 }
             }
         }
@@ -591,23 +637,112 @@
         // ユーザー操作時にAudioContextを初期化
         document.addEventListener('click', function() {
             initAudio();
+        });
+        
+        document.addEventListener('touchstart', function() {
+            initAudio();
+        });
+
+        // 音声再生キューを処理する関数
+        function processAudioQueue() {
+            if (isAudioProcessing || audioQueue.length === 0) {
+                return;
+            }
             
-            // iOSでの再生制限を回避するために、無音を再生する
-            if (beepSound) {
-                beepSound.volume = 0.01;
-                const promise = beepSound.play();
-                if (promise !== undefined) {
-                    promise.then(() => {
-                        beepSound.pause();
-                        beepSound.currentTime = 0;
-                        beepSound.volume = 1.0;
-                        console.log('Silent sound played successfully');
-                    }).catch(error => {
-                        console.warn('Audio play was prevented:', error);
-                    });
+            isAudioProcessing = true;
+            const audioType = audioQueue.shift();
+            
+            if (audioType === 'beep') {
+                playActualBeep();
+            } else if (audioType === 'complete') {
+                playActualComplete();
+            }
+        }
+        
+        // 実際のビープ音再生処理
+        function playActualBeep() {
+            // まずAudio要素で試す（サイレントモードでも動作する可能性）
+            if (useAudioElement && beepSound) {
+                try {
+                    beepSound.currentTime = 0;
+                    beepSound.volume = 1.0;
+                    const promise = beepSound.play();
+                    if (promise !== undefined) {
+                        promise.then(() => {
+                            console.log('Beep sound played successfully');
+                            setTimeout(() => {
+                                isAudioProcessing = false;
+                                processAudioQueue();
+                            }, 50); // 50ms後に次の音声を処理
+                        }).catch(error => {
+                            console.warn('Audio element play failed, falling back to Web Audio API:', error);
+                            playBeepWithWebAudio();
+                            setTimeout(() => {
+                                isAudioProcessing = false;
+                                processAudioQueue();
+                            }, 50);
+                        });
+                    } else {
+                        // promiseが返ってこない古いブラウザの場合
+                        setTimeout(() => {
+                            isAudioProcessing = false;
+                            processAudioQueue();
+                        }, 100);
+                    }
+                    return;
+                } catch (e) {
+                    console.error('Error playing sound with Audio element:', e);
                 }
             }
-        });
+            
+            // Web Audio APIでの再生を試みる
+            playBeepWithWebAudio();
+            setTimeout(() => {
+                isAudioProcessing = false;
+                processAudioQueue();
+            }, 100);
+        }
+        
+        // 実際の完了音再生処理
+        function playActualComplete() {
+            if (useAudioElement && completeSound) {
+                try {
+                    completeSound.currentTime = 0;
+                    completeSound.volume = 1.0;
+                    const promise = completeSound.play();
+                    if (promise !== undefined) {
+                        promise.then(() => {
+                            console.log('Complete sound played successfully');
+                            setTimeout(() => {
+                                isAudioProcessing = false;
+                                processAudioQueue();
+                            }, 300); // 完了音は長いので300ms待機
+                        }).catch(error => {
+                            console.warn('Audio element play failed, falling back to Web Audio API:', error);
+                            playCompleteWithWebAudio();
+                            setTimeout(() => {
+                                isAudioProcessing = false;
+                                processAudioQueue();
+                            }, 300);
+                        });
+                    } else {
+                        setTimeout(() => {
+                            isAudioProcessing = false;
+                            processAudioQueue();
+                        }, 300);
+                    }
+                    return;
+                } catch (e) {
+                    console.error('Error playing sound with Audio element:', e);
+                }
+            }
+            
+            playCompleteWithWebAudio();
+            setTimeout(() => {
+                isAudioProcessing = false;
+                processAudioQueue();
+            }, 300);
+        }
 
         // 合計時間を計算して表示
         function updateTotalTime() {
@@ -933,29 +1068,16 @@
             console.log("リセット完了 - 表示時間:", timerDisplay.textContent);
         }
 
-        // レトロゲーム風の効果音
+        // レトロゲーム風の効果音 - キューに追加するだけに変更
         function playBeep() {
-            // まずAudio要素で試す（サイレントモードでも動作する可能性）
-            if (useAudioElement && beepSound) {
-                try {
-                    beepSound.currentTime = 0;
-                    beepSound.volume = 1.0;
-                    const promise = beepSound.play();
-                    if (promise !== undefined) {
-                        promise.catch(error => {
-                            console.warn('Audio element play failed, falling back to Web Audio API:', error);
-                            playBeepWithWebAudio();
-                        });
-                    }
-                    return;
-                } catch (e) {
-                    console.error('Error playing sound with Audio element:', e);
-                    // Audio要素での再生に失敗した場合は、Web Audio APIにフォールバック
-                }
+            // 音声初期化を確認
+            if (!audioInitialized && !pendingAudioInit) {
+                initAudio();
             }
             
-            // Web Audio APIでの再生を試みる
-            playBeepWithWebAudio();
+            // キューに追加
+            audioQueue.push('beep');
+            processAudioQueue();
         }
         
         // Web Audio APIを使ったビープ音の再生
@@ -988,28 +1110,16 @@
             }
         }
 
+        // 完了音 - キューに追加するだけに変更
         function playComplete() {
-            // まずAudio要素で試す
-            if (useAudioElement && completeSound) {
-                try {
-                    completeSound.currentTime = 0;
-                    completeSound.volume = 1.0;
-                    const promise = completeSound.play();
-                    if (promise !== undefined) {
-                        promise.catch(error => {
-                            console.warn('Audio element play failed, falling back to Web Audio API:', error);
-                            playCompleteWithWebAudio();
-                        });
-                    }
-                    return;
-                } catch (e) {
-                    console.error('Error playing sound with Audio element:', e);
-                    // Audio要素での再生に失敗した場合は、Web Audio APIにフォールバック
-                }
+            // 音声初期化を確認
+            if (!audioInitialized && !pendingAudioInit) {
+                initAudio();
             }
             
-            // Web Audio APIでの再生を試みる
-            playCompleteWithWebAudio();
+            // キューに追加
+            audioQueue.push('complete');
+            processAudioQueue();
         }
         
         // Web Audio APIを使った完了音の再生
@@ -1225,9 +1335,27 @@
                 totalTimeDisplay.textContent = `合計時間: 00:03:50`;
             }
             
-            // 音声出力の初期化を試みる（ただしiOSでは効果がない場合がある）
+            // 音声出力の初期化を試みる
             try {
                 initAudio();
+                
+                // モバイルデバイス検出とイベント追加
+                if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                    // モバイルでは画面タップでも音声を有効化
+                    document.addEventListener('touchstart', function() {
+                        initAudio();
+                        
+                        // iOSの場合は一度無音再生を試みる
+                        if (beepSound) {
+                            beepSound.volume = 0.01;
+                            beepSound.play().then(() => {
+                                beepSound.pause();
+                                beepSound.currentTime = 0;
+                                beepSound.volume = 1.0;
+                            }).catch(() => {});
+                        }
+                    }, { once: true });
+                }
             } catch (e) {
                 console.warn('初期化時のAudio初期化に失敗:', e);
             }
