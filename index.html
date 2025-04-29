@@ -395,6 +395,10 @@
         // 音声出力用のAudioContextをグローバルに保持
         let audioContext = null;
         let audioInitialized = false;
+        // サイレントモードでも音を鳴らすためのAudio要素
+        let beepSound = null;
+        let completeSound = null;
+        let useAudioElement = true; // Audio要素を使用するフラグ
 
         const timerDisplay = document.getElementById('timer');
         const startBtn = document.getElementById('startBtn');
@@ -407,6 +411,137 @@
         const cycleRestTimeInput = document.getElementById('cycleRestTime');
         const cyclesInput = document.getElementById('cycles');
 
+        // 音声ファイルを作成してBase64エンコードする
+        function createBeepSound() {
+            // ビープ音のデータURIを作成
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate;
+            const duration = 0.1; // 100ms
+            const frameCount = sampleRate * duration;
+            
+            const audioBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+            const channelData = audioBuffer.getChannelData(0);
+            
+            // 880Hzの矩形波を生成
+            for (let i = 0; i < frameCount; i++) {
+                const t = i / sampleRate;
+                channelData[i] = Math.sign(Math.sin(2 * Math.PI * 880 * t)) * 0.1;
+            }
+            
+            // WAVファイルとしてエクスポート
+            const wavData = audioBufferToWav(audioBuffer);
+            const blob = new Blob([wavData], { type: 'audio/wav' });
+            
+            return URL.createObjectURL(blob);
+        }
+        
+        function createCompleteSound() {
+            // 完了音のデータURIを作成
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate;
+            const duration = 0.3; // 300ms
+            const frameCount = sampleRate * duration;
+            
+            const audioBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+            const channelData = audioBuffer.getChannelData(0);
+            
+            // 3音の矩形波を生成
+            for (let i = 0; i < frameCount; i++) {
+                const t = i / sampleRate;
+                let freq = 440;
+                if (t > 0.1 && t <= 0.2) freq = 880;
+                if (t > 0.2) freq = 1320;
+                
+                channelData[i] = Math.sign(Math.sin(2 * Math.PI * freq * t)) * 0.1;
+            }
+            
+            // WAVファイルとしてエクスポート
+            const wavData = audioBufferToWav(audioBuffer);
+            const blob = new Blob([wavData], { type: 'audio/wav' });
+            
+            return URL.createObjectURL(blob);
+        }
+        
+        // AudioBuffer から WAV データを生成する関数
+        function audioBufferToWav(buffer) {
+            const numOfChannels = buffer.numberOfChannels;
+            const length = buffer.length * numOfChannels * 2;
+            const sampleRate = buffer.sampleRate;
+            const dataView = new DataView(new ArrayBuffer(44 + length));
+            
+            // WAVヘッダーを書き込む
+            writeString(dataView, 0, 'RIFF');
+            dataView.setUint32(4, 36 + length, true);
+            writeString(dataView, 8, 'WAVE');
+            writeString(dataView, 12, 'fmt ');
+            dataView.setUint32(16, 16, true);
+            dataView.setUint16(20, 1, true);
+            dataView.setUint16(22, numOfChannels, true);
+            dataView.setUint32(24, sampleRate, true);
+            dataView.setUint32(28, sampleRate * numOfChannels * 2, true);
+            dataView.setUint16(32, numOfChannels * 2, true);
+            dataView.setUint16(34, 16, true);
+            writeString(dataView, 36, 'data');
+            dataView.setUint32(40, length, true);
+            
+            // オーディオデータを書き込む
+            const channelData = [];
+            for (let i = 0; i < numOfChannels; i++) {
+                channelData.push(buffer.getChannelData(i));
+            }
+            
+            let offset = 44;
+            for (let i = 0; i < buffer.length; i++) {
+                for (let channel = 0; channel < numOfChannels; channel++) {
+                    const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+                    dataView.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                    offset += 2;
+                }
+            }
+            
+            return dataView.buffer;
+        }
+        
+        function writeString(dataView, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                dataView.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        // Audio要素を初期化する関数
+        function initAudioElements() {
+            try {
+                if (!beepSound) {
+                    beepSound = new Audio();
+                    beepSound.src = createBeepSound();
+                    // サイレントモードでも再生できるように設定
+                    beepSound.setAttribute('playsinline', '');
+                    beepSound.setAttribute('webkit-playsinline', '');
+                    // iOSでは自動再生が制限されるため、ユーザー操作後にロードする
+                    beepSound.load();
+                }
+                
+                if (!completeSound) {
+                    completeSound = new Audio();
+                    completeSound.src = createCompleteSound();
+                    // サイレントモードでも再生できるように設定
+                    completeSound.setAttribute('playsinline', '');
+                    completeSound.setAttribute('webkit-playsinline', '');
+                    // iOSでは自動再生が制限されるため、ユーザー操作後にロードする
+                    completeSound.load();
+                }
+                
+                // 音声ファイルのプリロード
+                document.body.appendChild(beepSound);
+                document.body.appendChild(completeSound);
+                
+                console.log('Audio elements initialized');
+            } catch (e) {
+                console.error('Audio elements initialization failed:', e);
+                useAudioElement = false;
+            }
+        }
+
         // AudioContextを初期化する関数
         function initAudio() {
             if (!audioInitialized) {
@@ -414,8 +549,13 @@
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
                     audioInitialized = true;
                     console.log('AudioContext initialized');
+                    
+                    // Audio要素も初期化
+                    initAudioElements();
                 } catch (e) {
                     console.error('AudioContext initialization failed:', e);
+                    // Web Audio APIが使えなくても、Audio要素は試す
+                    initAudioElements();
                 }
             }
         }
@@ -423,6 +563,22 @@
         // ユーザー操作時にAudioContextを初期化
         document.addEventListener('click', function() {
             initAudio();
+            
+            // iOSでの再生制限を回避するために、無音を再生する
+            if (beepSound) {
+                beepSound.volume = 0.01;
+                const promise = beepSound.play();
+                if (promise !== undefined) {
+                    promise.then(() => {
+                        beepSound.pause();
+                        beepSound.currentTime = 0;
+                        beepSound.volume = 1.0;
+                        console.log('Silent sound played successfully');
+                    }).catch(error => {
+                        console.warn('Audio play was prevented:', error);
+                    });
+                }
+            }
         });
 
         // 合計時間を計算して表示
@@ -751,6 +907,31 @@
 
         // レトロゲーム風の効果音
         function playBeep() {
+            // まずAudio要素で試す（サイレントモードでも動作する可能性）
+            if (useAudioElement && beepSound) {
+                try {
+                    beepSound.currentTime = 0;
+                    beepSound.volume = 1.0;
+                    const promise = beepSound.play();
+                    if (promise !== undefined) {
+                        promise.catch(error => {
+                            console.warn('Audio element play failed, falling back to Web Audio API:', error);
+                            playBeepWithWebAudio();
+                        });
+                    }
+                    return;
+                } catch (e) {
+                    console.error('Error playing sound with Audio element:', e);
+                    // Audio要素での再生に失敗した場合は、Web Audio APIにフォールバック
+                }
+            }
+            
+            // Web Audio APIでの再生を試みる
+            playBeepWithWebAudio();
+        }
+        
+        // Web Audio APIを使ったビープ音の再生
+        function playBeepWithWebAudio() {
             if (!audioInitialized) {
                 console.warn('Audio not initialized yet');
                 return;
@@ -775,11 +956,36 @@
                 oscillator.start();
                 oscillator.stop(audioContext.currentTime + 0.1);
             } catch (e) {
-                console.error('Error playing sound:', e);
+                console.error('Error playing sound with Web Audio API:', e);
             }
         }
 
         function playComplete() {
+            // まずAudio要素で試す
+            if (useAudioElement && completeSound) {
+                try {
+                    completeSound.currentTime = 0;
+                    completeSound.volume = 1.0;
+                    const promise = completeSound.play();
+                    if (promise !== undefined) {
+                        promise.catch(error => {
+                            console.warn('Audio element play failed, falling back to Web Audio API:', error);
+                            playCompleteWithWebAudio();
+                        });
+                    }
+                    return;
+                } catch (e) {
+                    console.error('Error playing sound with Audio element:', e);
+                    // Audio要素での再生に失敗した場合は、Web Audio APIにフォールバック
+                }
+            }
+            
+            // Web Audio APIでの再生を試みる
+            playCompleteWithWebAudio();
+        }
+        
+        // Web Audio APIを使った完了音の再生
+        function playCompleteWithWebAudio() {
             if (!audioInitialized) {
                 console.warn('Audio not initialized yet');
                 return;
@@ -811,7 +1017,7 @@
                 
                 oscillator.stop(audioContext.currentTime + 0.3);
             } catch (e) {
-                console.error('Error playing sound:', e);
+                console.error('Error playing sound with Web Audio API:', e);
             }
         }
 
