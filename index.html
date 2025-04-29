@@ -430,6 +430,11 @@
         let pendingAudioInit = false; // 音声初期化の保留フラグ
         let audioQueue = []; // 音声再生キュー
         let isAudioProcessing = false; // 音声処理中フラグ
+        let lastTimerUpdate = 0; // 最後のタイマー更新時刻
+        let timerStartTime = 0; // タイマー開始時刻
+        let timerPreciseSeconds = 0; // 精密な秒数カウント
+        let expectedTimeLeft = 0; // 期待される残り時間
+        let animationFrameId = null; // requestAnimationFrameのID
 
         const timerDisplay = document.getElementById('timer');
         const startBtn = document.getElementById('startBtn');
@@ -835,6 +840,10 @@
             if (isRunning) {
                 // 一時停止
                 clearInterval(timer);
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
                 startBtn.innerHTML = '<span class="button-icon">▶</span>START';
                 timerDisplay.classList.remove('running');
                 isRunning = false;
@@ -847,11 +856,15 @@
                 timerDisplay.classList.add('running');
                 isRunning = true;
                 
+                // 現在の時刻を記録して高精度タイマーを開始
+                timerStartTime = Date.now();
+                timerPreciseSeconds = timeLeft;
+                
                 // 休憩中か運動中かによって適切なタイマー処理を選択
                 if (isRestPhase) {
-                    startRestTimerInterval();
+                    startPreciseRestTimer();
                 } else {
-                    startTimerInterval();
+                    startPreciseTimer();
                 }
                 return;
             }
@@ -888,15 +901,36 @@
             timerDisplay.classList.add('running');
             isRunning = true;
 
-            startTimerInterval();
+            // 現在の時刻を記録して高精度タイマーを開始
+            timerStartTime = Date.now();
+            timerPreciseSeconds = timeLeft;
+            startPreciseTimer();
         }
 
-        function startTimerInterval() {
+        // 高精度タイマー
+        function startPreciseTimer() {
+            // 既存のタイマーをクリア
             clearInterval(timer);
-            timer = setInterval(() => {
-                if (timeLeft > 1) { // 1秒以上ならカウントダウン
-                    timeLeft--;
-                    // 合計残り時間も減らす
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            
+            // 精密なタイマー処理
+            const updateTimer = () => {
+                // 経過時間を計算（ミリ秒）
+                const elapsed = Date.now() - timerStartTime;
+                // 経過秒数を計算（小数点以下も保持）
+                const elapsedSeconds = elapsed / 1000;
+                // 精密な残り時間を計算
+                const preciseTL = Math.max(0, timerPreciseSeconds - elapsedSeconds);
+                // 整数の残り時間を取得
+                const intTimeLeft = Math.ceil(preciseTL);
+                
+                // 表示されている時間と異なる場合のみ更新
+                if (intTimeLeft !== timeLeft) {
+                    timeLeft = intTimeLeft;
+                    
+                    // 合計残り時間も減らす（表示が変わる時のみ）
                     if (remainingTotalSeconds > 0) {
                         remainingTotalSeconds--;
                         updateTotalTimeDisplay(remainingTotalSeconds);
@@ -904,35 +938,111 @@
                     
                     // 10の倍数の時に音を鳴らす
                     if (timeLeft % 10 === 0 && timeLeft > 0) {
+                        // 音が少し前に再生されるように
                         playBeep();
                     }
                     
-                    // 3秒、2秒、1秒になったら音を鳴らす
+                    // 3秒、2秒、1秒のカウントダウン音
                     if (timeLeft === 3) {
-                        // 3秒のカウントダウン音は優先的に処理
-                        setTimeout(() => {
-                            playPriorityBeep();
-                        }, 0); // 即時実行するが、タイマーループの外で処理
+                        // タイマー表示より少し前に3秒音を再生
+                        playPriorityBeep();
                     } else if (timeLeft === 2 || timeLeft === 1) {
                         playBeep();
                     }
                     
                     updateDisplay();
-                } else {
-                    // 0秒になる前に次のフェーズに移行
-                    timeLeft = 0; // 一瞬だけ0を表示しない
+                }
+                
+                // 終了判定
+                if (timeLeft <= 0) {
+                    // タイマー終了処理
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                    handleIntervalComplete();
+                    return;
+                }
+                
+                // 次のフレームを要求
+                animationFrameId = requestAnimationFrame(updateTimer);
+            };
+            
+            // 初回の更新を開始
+            animationFrameId = requestAnimationFrame(updateTimer);
+        }
+        
+        // 高精度休憩タイマー
+        function startPreciseRestTimer() {
+            // 既存のタイマーをクリア
+            clearInterval(timer);
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            
+            // 精密なタイマー処理
+            const updateTimer = () => {
+                // 経過時間を計算（ミリ秒）
+                const elapsed = Date.now() - timerStartTime;
+                // 経過秒数を計算（小数点以下も保持）
+                const elapsedSeconds = elapsed / 1000;
+                // 精密な残り時間を計算
+                const preciseTL = Math.max(0, timerPreciseSeconds - elapsedSeconds);
+                // 整数の残り時間を取得
+                const intTimeLeft = Math.ceil(preciseTL);
+                
+                // 表示されている時間と異なる場合のみ更新
+                if (intTimeLeft !== timeLeft) {
+                    timeLeft = intTimeLeft;
                     
-                    // 合計残り時間も減らす
+                    // 合計残り時間も減らす（表示が変わる時のみ）
                     if (remainingTotalSeconds > 0) {
                         remainingTotalSeconds--;
                         updateTotalTimeDisplay(remainingTotalSeconds);
                     }
                     
-                    // 次のフェーズに即座に移行
-                    clearInterval(timer);
-                    handleIntervalComplete();
+                    // 10の倍数の時に音を鳴らす
+                    if (timeLeft % 10 === 0 && timeLeft > 0) {
+                        // 音が少し前に再生されるように
+                        playBeep();
+                    }
+                    
+                    // 3秒、2秒、1秒のカウントダウン音
+                    if (timeLeft === 3) {
+                        // タイマー表示より少し前に3秒音を再生
+                        playPriorityBeep();
+                    } else if (timeLeft === 2 || timeLeft === 1) {
+                        playBeep();
+                    }
+                    
+                    updateDisplay();
                 }
-            }, 1000);
+                
+                // 終了判定
+                if (timeLeft <= 0) {
+                    // タイマー終了処理
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                    
+                    // 次のフェーズに移行
+                    timerDisplay.style.color = '#e74c3c'; // 運動時間は赤色に変更
+                    isRestPhase = false; // 運動フェーズを設定
+                    timeLeft = parseInt(intervalTimeInput.value);
+                    totalTime = timeLeft;
+                    playComplete(); // フェーズ開始時の音を変更
+                    updateDisplay(); // 新しい時間を表示
+                    
+                    // 新しいタイマーを開始
+                    timerStartTime = Date.now();
+                    timerPreciseSeconds = timeLeft;
+                    startPreciseTimer();
+                    return;
+                }
+                
+                // 次のフレームを要求
+                animationFrameId = requestAnimationFrame(updateTimer);
+            };
+            
+            // 初回の更新を開始
+            animationFrameId = requestAnimationFrame(updateTimer);
         }
 
         function handleIntervalComplete() {
@@ -952,7 +1062,7 @@
                 
                 // 休憩時間のタイマーを開始
                 clearInterval(timer);
-                startRestTimerInterval();
+                startPreciseRestTimer();
             } else if (currentCycle < totalCycles) {
                 // 次のサイクルへ
                 currentCycle++;
@@ -973,7 +1083,7 @@
                     
                     // 休憩時間のタイマーを開始
                     clearInterval(timer);
-                    startRestTimerInterval();
+                    startPreciseRestTimer();
                     return;
                 }
                 
@@ -983,7 +1093,7 @@
                 timerDisplay.style.color = '#e74c3c'; // 運動時間は赤色に変更
                 isRestPhase = false; // 運動フェーズを設定
                 updateDisplay(); // 新しい時間を表示
-                startTimerInterval();
+                startPreciseTimer();
             } else {
                 // ワークアウト完了
                 clearInterval(timer);
@@ -1018,6 +1128,12 @@
         function resetTimer(keepCompletedState = false) {
             // 通常のタイマーを停止
             clearInterval(timer);
+            
+            // 高精度タイマーの停止
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
             
             // 準備カウントダウンも停止（存在する場合）
             if (window.prepTimer) {
@@ -1225,7 +1341,7 @@
                     
                     // タイマーを開始
                     playComplete(); // 開始音を鳴らす
-                    startTimerInterval();
+                    startPreciseTimer();
                 }
             }, 1000);
         }
@@ -1453,61 +1569,6 @@
                 progressSegments.appendChild(segment);
             }
         }
-
-        // 休憩時間用のタイマー処理を分離
-        function startRestTimerInterval() {
-            clearInterval(timer);
-            timer = setInterval(() => {
-                if (timeLeft > 1) { // 1秒以上ならカウントダウン
-                    timeLeft--;
-                    // 合計残り時間も減らす
-                    if (remainingTotalSeconds > 0) {
-                        remainingTotalSeconds--;
-                        updateTotalTimeDisplay(remainingTotalSeconds);
-                    }
-                    
-                    // 10の倍数の時に音を鳴らす
-                    if (timeLeft % 10 === 0 && timeLeft > 0) {
-                        playBeep();
-                    }
-                    
-                    // 3秒、2秒、1秒になったら音を鳴らす
-                    if (timeLeft === 3) {
-                        // 3秒のカウントダウン音は優先的に処理
-                        setTimeout(() => {
-                            playPriorityBeep();
-                        }, 0); // 即時実行するが、タイマーループの外で処理
-                    } else if (timeLeft === 2 || timeLeft === 1) {
-                        playBeep();
-                    }
-                    
-                    updateDisplay();
-                } else {
-                    // 休憩終了、次のセットへ
-                    timeLeft = 0; // 一瞬だけ0を表示しない
-                    
-                    // 合計残り時間も減らす
-                    if (remainingTotalSeconds > 0) {
-                        remainingTotalSeconds--;
-                        updateTotalTimeDisplay(remainingTotalSeconds);
-                    }
-                    
-                    // 次のフェーズに即座に移行
-                    clearInterval(timer);
-                    // 次のフェーズに移行
-                    timerDisplay.style.color = '#e74c3c'; // 運動時間は赤色に変更
-                    isRestPhase = false; // 運動フェーズを設定
-                    timeLeft = parseInt(intervalTimeInput.value);
-                    totalTime = timeLeft;
-                    playComplete(); // フェーズ開始時の音を変更
-                    updateDisplay(); // 新しい時間を表示
-                    startTimerInterval(); // 通常のタイマーに戻る
-                }
-            }, 1000);
-        }
-
-        // 初期化を実行
-        initialize();
     </script>
     
     <!-- Service Workerの登録 -->
