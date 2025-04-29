@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="hjJKEQpLzLv4hgOst4ZCJX2gYQ0B6vEJbI2ROhVB7B4" />
+    <title>HIITタイマー</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <!-- PWA対応のためのマニフェストとアイコン -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    
+    <!-- iOSのホーム画面追加対応 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="HIITタイマー">
+    
+    <!-- iOSアイコン設定 -->
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180x180.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167x167.png">
+    
+    <!-- ホーム画面に追加時のスプラッシュスクリーン -->
+    <link href="splashscreens/iphone5_splash.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+    <link href="splashscreens/iphone6_splash.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+    <link href="splashscreens/iphoneplus_splash.png" media="(device-width: 621px) and (device-height: 1104px) and (-webkit-device-pixel-ratio: 3)" rel="apple-touch-startup-image" />
+    <link href="splashscreens/iphonex_splash.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" rel="apple-touch-startup-image" />
+    <link href="splashscreens/iphonexr_splash.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+    <link href="splashscreens/iphonexsmax_splash.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" rel="apple-touch-startup-image" />
+    <link href="splashscreens/ipad_splash.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+    <link href="splashscreens/ipadpro1_splash.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+    <link href="splashscreens/ipadpro3_splash.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+    <link href="splashscreens/ipadpro2_splash.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+    
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #000;
+            margin: 0;
+            padding: 10px;
+            color: #fff;
+            line-height: 1.6;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: #000;
+            padding: 15px;
+            border: 4px solid #fff;
+            max-width: 600px;
+            width: 100%;
+            box-sizing: border-box;
+            image-rendering: pixelated;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            position: relative;
+        }
+
+        h1 {
+            text-align: center;
+            color: #00ff00;
+            text-shadow: 2px 2px #008800;
+            font-size: 36px;
+            margin-bottom: 15px;
+        }
+
+        .settings {
+            margin-bottom: 15px;
+            border: 2px solid #444;
+            padding: 10px;
+            background-color: #111;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .settings div {
+            margin: 10px 0;
+        }
+
+        .total-time {
+            text-align: center;
+            font-size: 14px;
+            color: #00ff00;
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #222;
+            border: 2px solid #444;
+        }
+
+        .timer {
+            font-size: 72px;
+            text-align: center;
+            margin: 15px 0;
+            color: #00ff00;
+            text-shadow: 2px 2px #008800;
+            background-color: #111;
+            padding: 15px 10px;
+            border: 2px solid #444;
+        }
+
+        /* プログレスバー関連のスタイル */
+        .progress-container {
+            width: 100%;
+            background-color: #111;
+            border: 2px solid #444;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            height: 20px;
+            background-color: #111;
+            position: relative;
+        }
+
+        .progress-segments {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .segment {
+            height: 100%;
+            border-right: 0.2px solid #222;
+            box-sizing: border-box;
+            background-color: #111;
+        }
+
+        .segment.active {
+            background-color: #00ff00;
+            box-shadow: 0 0 1px #00ff00;
+        }
+
+        .progress-label {
+            text-align: center;
+            font-size: 10px;
+            margin-top: 5px;
+            color: #00ff00;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        button {
+            padding: 20px 40px;
+            font-size: 18px;
+            font-family: 'Press Start 2P', cursive;
+            background-color: #00ff00;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            margin: 5px;
+            box-shadow: 3px 3px #008800;
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .button-icon {
+            margin-right: 10px;
+            font-size: 22px;
+        }
+
+        /* RESETボタンのアイコンのみ大きくする */
+        #resetBtn .button-icon {
+            font-size: 34px;
+        }
+
+        button:hover {
+            background-color: #00dd00;
+            transform: translate(1px, 1px);
+            box-shadow: 2px 2px #008800;
+        }
+
+        button:active {
+            transform: translate(3px, 3px);
+            box-shadow: none;
+        }
+
+        .status {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 12px;
+            background-color: #111;
+            padding: 15px;
+            border: 2px solid #444;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 8px;
+            margin-left: 10px;
+            background-color: #111;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #00dd00;
+        }
+
+        label {
+            display: inline-block;
+            width: 200px;
+            font-size: 12px;
+            color: #00ff00;
+            text-align: right;
+            padding-right: 10px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 0;
+            }
+            
+            .container {
+                padding: 10px;
+                border-width: 2px;
+                height: 100vh;
+                max-height: 100vh;
+            }
+
+            h1 {
+                font-size: 24px;
+                margin-bottom: 10px;
+            }
+
+            .settings {
+                padding: 8px;
+                margin-bottom: 10px;
+                max-height: 30vh;
+                overflow-y: auto;
+            }
+
+            .timer {
+                font-size: 48px;
+                padding: 10px 5px;
+                margin: 10px 0;
+            }
+            
+            .progress-container {
+                margin-bottom: 10px;
+                padding: 5px;
+            }
+
+            .progress-bar {
+                height: 15px;
+            }
+
+            label {
+                font-size: 9px;
+                width: 130px;
+            }
+
+            input[type="number"] {
+                width: 50px;
+                font-size: 9px;
+                padding: 5px;
+            }
+
+            button {
+                padding: 12px 20px;
+                font-size: 12px;
+                margin: 3px;
+            }
+            
+            .controls {
+                margin: 10px 0;
+                gap: 10px;
+            }
+            
+            .status {
+                margin-top: 10px;
+                padding: 10px;
+                font-size: 10px;
+            }
+            
+            .button-icon {
+                font-size: 16px;
+                margin-right: 5px;
+            }
+            
+            /* スマホ表示時のRESETボタンのアイコン */
+            #resetBtn .button-icon {
+                font-size: 24px;
+            }
+
+            /* スマホ表示時の保存ボタン */
+            #saveBtn {
+                top: auto;
+                right: 10px;
+                bottom: 60px; /* スマホ表示時も調整 */
+                padding: 4px 8px;
+                font-size: 8px;
+            }
+        }
+
+        /* アニメーション効果 */
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .timer.running {
+            animation: blink 1s infinite;
+        }
+
+        /* 保存ボタンのスタイル */
+        #saveBtn {
+            position: absolute;
+            top: auto;
+            right: 10px;
+            bottom: 70px; /* 位置を下に調整 */
+            padding: 5px 10px;
+            font-size: 10px;
+            font-family: 'Press Start 2P', cursive;
+            background-color: #00ff00;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            box-shadow: 2px 2px #008800;
+            z-index: 10;
+        }
+
+        #saveBtn:hover {
+            background-color: #00dd00;
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px #008800;
+        }
+
+        #saveBtn:active {
+            transform: translate(2px, 2px);
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HIITタイマー</h1>
+        
+        <div class="settings">
+            <div>
+                <label for="intervalTime">1セットの運動時間（秒）:</label>
+                <input type="number" id="intervalTime" value="20" min="1">
+            </div>
+            <div>
+                <label for="restTime">セット間休憩（秒）:</label>
+                <input type="number" id="restTime" value="10" min="0">
+            </div>
+            <div>
+                <label for="sets">セット数:</label>
+                <input type="number" id="sets" value="8" min="1">
+            </div>
+            <div>
+                <label for="cycleRestTime">サイクル間休憩（秒）:</label>
+                <input type="number" id="cycleRestTime" value="120" min="0">
+            </div>
+            <div>
+                <label for="cycles">サイクル数:</label>
+                <input type="number" id="cycles" value="1" min="1">
+                <button id="saveBtn">保存</button>
+            </div>
+            <div class="total-time" id="totalTimeDisplay">
+                合計時間: 00:00:00
+            </div>
+        </div>
+
+        <div class="timer" id="timer">00:00</div>
+
+        <!-- プログレスバー -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-segments" id="progressSegments"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn"><span class="button-icon">▶</span>START</button>
+            <button id="resetBtn"><span class="button-icon">↺</span>RESET</button>
+        </div>
+
+        <div class="status">
+            <p><span id="setLabel">SET</span>: <span id="currentSet">0</span> / <span id="totalSets">0</span></p>
+            <p><span id="cycleLabel">CYCLE</span>: <span id="currentCycle">0</span> / <span id="totalCycles">0</span></p>
+        </div>
+    </div>
+
+    <script>
+        let timer;
+        let isRunning = false;
+        let timeLeft;
+        let totalTime;
+        let currentSet = 1;
+        let currentCycle = 1;
+        let totalSets;
+        let totalCycles;
+        let totalTimeSeconds = 0; // 合計時間（秒）
+        let remainingTotalSeconds = 0; // 残りの合計時間（秒）
+        const SEGMENTS = 600; // プログレスバーのセグメント数を600に増加
+        let isFirstStart = true; // 最初のスタートかどうかを判定するフラグ
+        let prepCountdown = 5; // 準備カウントダウンの秒数
+        let isWorkoutCompleted = false; // ワークアウト完了フラグ
+        let initialIntervalTime = 20; // 初期運動時間を保存するための変数
+        let isRestPhase = false; // 休憩中かどうかを表すフラグ
+        // 音声出力用のAudioContextをグローバルに保持
+        let audioContext = null;
+        let audioInitialized = false;
+        // サイレントモードでも音を鳴らすためのAudio要素
+        let beepSound = null;
+        let completeSound = null;
+        let useAudioElement = true; // Audio要素を使用するフラグ
+        let lastBeepTime = 0; // 最後にビープ音を鳴らした時間
+        let audioQueue = []; // 音声再生キュー
+        let isAudioProcessing = false; // 音声処理中フラグ
+        // Screen Wake Lock API用の変数
+        let wakeLock = null;
+        let wakeLockSupported = false;
+
+        const timerDisplay = document.getElementById('timer');
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const progressSegments = document.getElementById('progressSegments');
+        const totalTimeDisplay = document.getElementById('totalTimeDisplay');
+        const intervalTimeInput = document.getElementById('intervalTime');
+        const restTimeInput = document.getElementById('restTime');
+        const setsInput = document.getElementById('sets');
+        const cycleRestTimeInput = document.getElementById('cycleRestTime');
+        const cyclesInput = document.getElementById('cycles');
+
+        // Screen Wake Lock APIのサポート確認
+        async function checkWakeLockSupport() {
+            if ('wakeLock' in navigator) {
+                wakeLockSupported = true;
+                console.log('Screen Wake Lock APIがサポートされています');
+            } else {
+                wakeLockSupported = false;
+                console.log('Screen Wake Lock APIはサポートされていません');
+            }
+        }
+
+        // Wake Lockを要求する関数
+        async function requestWakeLock() {
+            if (!wakeLockSupported) return;
+
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Screen Wake Lockが有効になりました');
+                
+                // ユーザーがタブやウィンドウを切り替えたときの処理
+                wakeLock.addEventListener('release', () => {
+                    console.log('Screen Wake Lockが解除されました');
+                });
+                
+                // ページの表示状態が変わったときにWake Lockを再取得
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+            } catch (err) {
+                console.error('Wake Lock要求エラー:', err.message);
+            }
+        }
+
+        // Wake Lockを解除する関数
+        async function releaseWakeLock() {
+            if (!wakeLock) return;
+            
+            try {
+                await wakeLock.release();
+                wakeLock = null;
+                console.log('Screen Wake Lockを手動で解除しました');
+                
+                // イベントリスナーを削除
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+            } catch (err) {
+                console.error('Wake Lock解除エラー:', err.message);
+            }
+        }
+
+        // ページの可視性が変更されたときの処理
+        async function handleVisibilityChange() {
+            if (document.visibilityState === 'visible' && isRunning) {
+                // ページが再表示されたときにWake Lockを再取得
+                await requestWakeLock();
+            }
+        }
+
+        // 音声ファイルを作成してBase64エンコードする
+        function createBeepSound() {
+            // ビープ音のデータURIを作成
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate;
+            const duration = 0.1; // 100ms
+            const frameCount = sampleRate * duration;
+            
+            const audioBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+            const channelData = audioBuffer.getChannelData(0);
+            
+            // 880Hzの矩形波を生成
+            for (let i = 0; i < frameCount; i++) {
+                const t = i / sampleRate;
+                channelData[i] = Math.sign(Math.sin(2 * Math.PI * 880 * t)) * 0.1;
+            }
+            
+            // WAVファイルとしてエクスポート
+            const wavData = audioBufferToWav(audioBuffer);
+            const blob = new Blob([wavData], { type: 'audio/wav' });
+            
+            return URL.createObjectURL(blob);
+        }
+        
+        function createCompleteSound() {
+            // 完了音のデータURIを作成
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate;
+            const duration = 0.3; // 300ms
+            const frameCount = sampleRate * duration;
+            
+            const audioBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+            const channelData = audioBuffer.getChannelData(0);
+            
+            // 3音の矩形波を生成
+            for (let i = 0; i < frameCount; i++) {
+                const t = i / sampleRate;
+                let freq = 440;
+                if (t > 0.1 && t <= 0.2) freq = 880;
+                if (t > 0.2) freq = 1320;
+                
+                channelData[i] = Math.sign(Math.sin(2 * Math.PI * freq * t)) * 0.1;
+            }
+            
+            // WAVファイルとしてエクスポート
+            const wavData = audioBufferToWav(audioBuffer);
+            const blob = new Blob([wavData], { type: 'audio/wav' });
+            
+            return URL.createObjectURL(blob);
+        }
+        
+        // AudioBuffer から WAV データを生成する関数
+        function audioBufferToWav(buffer) {
+            const numOfChannels = buffer.numberOfChannels;
+            const length = buffer.length * numOfChannels * 2;
+            const sampleRate = buffer.sampleRate;
+            const dataView = new DataView(new ArrayBuffer(44 + length));
+            
+            // WAVヘッダーを書き込む
+            writeString(dataView, 0, 'RIFF');
+            dataView.setUint32(4, 36 + length, true);
+            writeString(dataView, 8, 'WAVE');
+            writeString(dataView, 12, 'fmt ');
+            dataView.setUint32(16, 16, true);
+            dataView.setUint16(20, 1, true);
+            dataView.setUint16(22, numOfChannels, true);
+            dataView.setUint32(24, sampleRate, true);
+            dataView.setUint32(28, sampleRate * numOfChannels * 2, true);
+            dataView.setUint16(32, numOfChannels * 2, true);
+            dataView.setUint16(34, 16, true);
+            writeString(dataView, 36, 'data');
+            dataView.setUint32(40, length, true);
+            
+            // オーディオデータを書き込む
+            const channelData = [];
+            for (let i = 0; i < numOfChannels; i++) {
+                channelData.push(buffer.getChannelData(i));
+            }
+            
+            let offset = 44;
+            for (let i = 0; i < buffer.length; i++) {
+                for (let channel = 0; channel < numOfChannels; channel++) {
+                    const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+                    dataView.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                    offset += 2;
+                }
+            }
+            
+            return dataView.buffer;
+        }
+        
+        function writeString(dataView, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                dataView.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        // Audio要素を初期化する関数
+        function initAudioElements() {
+            try {
+                if (!beepSound) {
+                    beepSound = new Audio();
+                    beepSound.src = createBeepSound();
+                    // サイレントモードでも再生できるように設定
+                    beepSound.setAttribute('playsinline', '');
+                    beepSound.setAttribute('webkit-playsinline', '');
+                    // 早めにロードしておく
+                    beepSound.preload = 'auto';
+                    beepSound.load();
+                    
+                    // iOS向けにイベントハンドラを追加
+                    beepSound.addEventListener('canplaythrough', function() {
+                        console.log('ビープ音の読み込み完了');
+                    });
+                }
+                
+                if (!completeSound) {
+                    completeSound = new Audio();
+                    completeSound.src = createCompleteSound();
+                    // サイレントモードでも再生できるように設定
+                    completeSound.setAttribute('playsinline', '');
+                    completeSound.setAttribute('webkit-playsinline', '');
+                    // 早めにロードしておく
+                    completeSound.preload = 'auto';
+                    completeSound.load();
+                    
+                    // iOS向けにイベントハンドラを追加
+                    completeSound.addEventListener('canplaythrough', function() {
+                        console.log('完了音の読み込み完了');
+                    });
+                }
+                
+                // 音声ファイルのプリロード
+                document.body.appendChild(beepSound);
+                document.body.appendChild(completeSound);
+                
+                // 同一音の連続再生用にクローンを作成
+                for (let i = 0; i < 3; i++) {
+                    const beepClone = beepSound.cloneNode(true);
+                    beepClone.id = `beepSound_${i}`;
+                    document.body.appendChild(beepClone);
+                }
+                
+                console.log('Audio elements initialized');
+            } catch (e) {
+                console.error('Audio elements initialization failed:', e);
+                useAudioElement = false;
+            }
+        }
+
+        // AudioContextを初期化する関数
+        function initAudio() {
+            if (!audioInitialized) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    audioInitialized = true;
+                    console.log('AudioContext initialized');
+                    
+                    // オーディオコンテキストの状態を監視
+                    if (audioContext.state === 'suspended') {
+                        audioContext.resume().then(() => {
+                            console.log('AudioContext resumed successfully');
+                        }).catch(err => {
+                            console.error('Failed to resume AudioContext:', err);
+                        });
+                    }
+                    
+                    // Audio要素も初期化
+                    initAudioElements();
+                } catch (e) {
+                    console.error('AudioContext initialization failed:', e);
+                    // Web Audio APIが使えなくても、Audio要素は試す
+                    initAudioElements();
+                }
+            } else if (audioContext && audioContext.state === 'suspended') {
+                // 既にinitAudioが呼ばれていても、suspendedなら再開を試みる
+                audioContext.resume().then(() => {
+                    console.log('AudioContext resumed on re-init');
+                }).catch(err => {
+                    console.error('Failed to resume AudioContext on re-init:', err);
+                });
+            }
+        }
+
+        // ユーザー操作時にAudioContextを初期化
+        document.addEventListener('click', function() {
+            initAudio();
+            
+            // iOSでの再生制限を回避するために、無音を再生する
+            if (beepSound) {
+                beepSound.volume = 0.01;
+                const promise = beepSound.play();
+                if (promise !== undefined) {
+                    promise.then(() => {
+                        beepSound.pause();
+                        beepSound.currentTime = 0;
+                        beepSound.volume = 1.0;
+                        console.log('Silent sound played successfully');
+                    }).catch(error => {
+                        console.warn('Audio play was prevented:', error);
+                    });
+                }
+            }
+        });
+
+        // 音声キューを処理する関数
+        function processAudioQueue() {
+            if (isAudioProcessing || audioQueue.length === 0) return;
+            
+            isAudioProcessing = true;
+            const soundType = audioQueue.shift();
+            
+            const now = Date.now();
+            // 最後の再生から50ms以上経っていることを確認（短すぎる間隔での再生を防止）
+            if (now - lastBeepTime < 50) {
+                setTimeout(() => {
+                    isAudioProcessing = false;
+                    processAudioQueue();
+                }, 50);
+                return;
+            }
+            
+            lastBeepTime = now;
+            
+            if (soundType === 'beep') {
+                // まずAudio要素による再生を試みる
+                if (useAudioElement) {
+                    // 利用可能なbeep音クローンを探す
+                    let foundAudio = null;
+                    for (let i = 0; i < 3; i++) {
+                        const audio = document.getElementById(`beepSound_${i}`);
+                        if (audio && (audio.paused || audio.ended)) {
+                            foundAudio = audio;
+                            break;
+                        }
+                    }
+                    
+                    // 利用可能なクローンが見つかった場合
+                    if (foundAudio) {
+                        foundAudio.currentTime = 0;
+                        foundAudio.volume = 1.0;
+                        const promise = foundAudio.play();
+                        if (promise !== undefined) {
+                            promise.then(() => {
+                                setTimeout(() => {
+                                    isAudioProcessing = false;
+                                    processAudioQueue();
+                                }, 50);
+                            }).catch(error => {
+                                console.warn('Audio element play failed:', error);
+                                playBeepWithWebAudio();
+                                setTimeout(() => {
+                                    isAudioProcessing = false;
+                                    processAudioQueue();
+                                }, 50);
+                            });
+                            return;
+                        }
+                    } else if (beepSound) {
+                        // クローンが全て使用中の場合、元のbeepSoundを使用
+                        beepSound.currentTime = 0;
+                        beepSound.volume = 1.0;
+                        const promise = beepSound.play();
+                        if (promise !== undefined) {
+                            promise.then(() => {
+                                setTimeout(() => {
+                                    isAudioProcessing = false;
+                                    processAudioQueue();
+                                }, 50);
+                            }).catch(error => {
+                                console.warn('Audio element play failed:', error);
+                                playBeepWithWebAudio();
+                                setTimeout(() => {
+                                    isAudioProcessing = false;
+                                    processAudioQueue();
+                                }, 50);
+                            });
+                            return;
+                        }
+                    }
+                }
+                
+                // Audio要素での再生に失敗した場合はWeb Audio APIを試す
+                playBeepWithWebAudio();
+            } else if (soundType === 'complete') {
+                if (useAudioElement && completeSound) {
+                    completeSound.currentTime = 0;
+                    completeSound.volume = 1.0;
+                    const promise = completeSound.play();
+                    if (promise !== undefined) {
+                        promise.then(() => {
+                            setTimeout(() => {
+                                isAudioProcessing = false;
+                                processAudioQueue();
+                            }, 100);
+                        }).catch(error => {
+                            console.warn('Audio element play failed:', error);
+                            playCompleteWithWebAudio();
+                            setTimeout(() => {
+                                isAudioProcessing = false;
+                                processAudioQueue();
+                            }, 100);
+                        });
+                        return;
+                    }
+                }
+                
+                // Audio要素での再生に失敗した場合はWeb Audio APIを試す
+                playCompleteWithWebAudio();
+            }
+            
+            // 次の音声処理のためにフラグをリセット
+            setTimeout(() => {
+                isAudioProcessing = false;
+                processAudioQueue();
+            }, 100);
+        }
+
+        // 合計時間を計算して表示
+        function updateTotalTime() {
+            const intervalTime = parseInt(intervalTimeInput.value) || 20;
+            const restTime = parseInt(restTimeInput.value) || 10;
+            const sets = parseInt(setsInput.value) || 8;
+            const cycleRestTime = parseInt(cycleRestTimeInput.value) || 120;
+            const cycles = parseInt(cyclesInput.value) || 1;
+            
+            // 各サイクルでは (運動時間 + 休憩時間) が (セット数 - 1) 回と、最後のセットの運動時間のみ
+            // サイクル間には休憩時間を追加（最後のサイクルを除く）
+            let totalSeconds = 0;
+            
+            if (sets > 0 && cycles > 0) {
+                // 各サイクルの時間
+                const cycleTime = ((intervalTime + restTime) * (sets - 1) + intervalTime);
+                // サイクル間の休憩時間（最後のサイクルの後は休憩なし）
+                const cyclesRestTotal = cycleRestTime * (cycles - 1);
+                // 合計時間
+                totalSeconds = (cycleTime * cycles) + cyclesRestTotal;
+            }
+            
+            totalTimeSeconds = totalSeconds;
+            remainingTotalSeconds = totalSeconds;
+            
+            updateTotalTimeDisplay(totalSeconds);
+        }
+        
+        // 合計時間の表示を更新
+        function updateTotalTimeDisplay(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            totalTimeDisplay.textContent = `合計時間: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // プログレスバーを更新
+        function updateProgressBar() {
+            // プログレスバーは常に初期設定の運動時間を基準にする
+            const progressPercentage = (timeLeft / totalTime) * 100;
+            const activeSegments = Math.ceil((timeLeft / totalTime) * SEGMENTS);
+            
+            // すべてのセグメントをリセット
+            const segments = progressSegments.querySelectorAll('.segment');
+            segments.forEach((segment, index) => {
+                if (index < activeSegments) {
+                    segment.classList.add('active');
+                } else {
+                    segment.classList.remove('active');
+                }
+            });
+        }
+
+        function updateDisplay() {
+            // ワークアウト完了時は00:00を表示
+            if (isWorkoutCompleted) {
+                timerDisplay.textContent = '00:00';
+                return;
+            }
+            
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            document.getElementById('currentSet').textContent = currentSet;
+            document.getElementById('totalSets').textContent = totalSets;
+            document.getElementById('currentCycle').textContent = currentCycle;
+            document.getElementById('totalCycles').textContent = totalCycles;
+            
+            // 運動時間と休憩時間でラベルを切り替える
+            const setLabel = document.getElementById('setLabel');
+            const cycleLabel = document.getElementById('cycleLabel');
+            
+            if (isRestPhase) {
+                // 休憩時間中（青色表示）
+                setLabel.textContent = 'NEXT SET';
+                cycleLabel.textContent = 'NEXT CYCLE';
+            } else {
+                // 運動時間中（赤色表示）
+                setLabel.textContent = 'SET';
+                cycleLabel.textContent = 'CYCLE';
+            }
+            
+            // プログレスバーを更新
+            updateProgressBar();
+        }
+
+        function startTimer() {
+            // タイマー開始前に必ずオーディオを初期化
+            initAudio();
+            
+            if (isRunning) {
+                // 一時停止
+                clearInterval(timer);
+                startBtn.innerHTML = '<span class="button-icon">▶</span>START';
+                timerDisplay.classList.remove('running');
+                isRunning = false;
+                // Wake Lockを解除
+                releaseWakeLock();
+                return;
+            }
+
+            // 一時停止からの再開の場合
+            if (timeLeft > 0 && !isFirstStart) {
+                startBtn.innerHTML = '<span class="button-icon">⏸</span>PAUSE';
+                timerDisplay.classList.add('running');
+                isRunning = true;
+                
+                // Wake Lockを要求
+                requestWakeLock();
+                
+                // 休憩中か運動中かによって適切なタイマー処理を選択
+                if (isRestPhase) {
+                    startRestTimerInterval();
+                } else {
+                    startTimerInterval();
+                }
+                return;
+            }
+
+            // 新しいタイマーを開始する場合
+            totalSets = parseInt(setsInput.value);
+            totalCycles = parseInt(cyclesInput.value);
+            timeLeft = parseInt(intervalTimeInput.value);
+            
+            // 新しいセッションを開始する場合はtotalTimeを設定する
+            // このtotalTimeはプログレスバーの基準になる
+            if (isFirstStart) {
+                totalTime = timeLeft;
+            }
+
+            // 合計時間を再計算
+            updateTotalTime();
+            remainingTotalSeconds = totalTimeSeconds;
+
+            document.getElementById('totalSets').textContent = totalSets;
+            document.getElementById('totalCycles').textContent = totalCycles;
+            
+            // 運動時間の色に設定
+            timerDisplay.style.color = '#e74c3c';
+            updateDisplay(); // 表示を更新
+            
+            // 最初のスタート時は準備カウントダウンを表示
+            if (isFirstStart) {
+                // Wake Lockを要求
+                requestWakeLock();
+                startPrepCountdown();
+                return;
+            }
+
+            // Wake Lockを要求
+            requestWakeLock();
+            
+            startBtn.innerHTML = '<span class="button-icon">⏸</span>PAUSE';
+            timerDisplay.classList.add('running');
+            isRunning = true;
+
+            startTimerInterval();
+        }
+
+        function startTimerInterval() {
+            clearInterval(timer);
+            
+            // タイマーの精度を向上させるために基準時間を記録
+            const startTime = Date.now();
+            let expectedTime = startTime;
+            
+            timer = setInterval(() => {
+                const currentTime = Date.now();
+                // 実際の経過時間と期待時間の差を補正
+                const drift = currentTime - expectedTime;
+                
+                // 次の期待時間を計算（前回の期待時間から正確に1秒後）
+                expectedTime += 1000;
+                
+                if (timeLeft > 1) { // 1秒以上ならカウントダウン
+                    timeLeft--;
+                    // 合計残り時間も減らす
+                    if (remainingTotalSeconds > 0) {
+                        remainingTotalSeconds--;
+                        updateTotalTimeDisplay(remainingTotalSeconds);
+                    }
+                    
+                    // 10の倍数の時に音を鳴らす
+                    if (timeLeft % 10 === 0 && timeLeft > 0) {
+                        playBeep();
+                    }
+                    
+                    // 3秒、2秒、1秒になったら音を鳴らす
+                    if (timeLeft === 3 || timeLeft === 2 || timeLeft === 1) {
+                        playBeep();
+                    }
+                    
+                    updateDisplay();
+                    
+                    // 著しいドリフトがある場合は補正
+                    if (Math.abs(drift) > 100) {
+                        clearInterval(timer);
+                        startTimerInterval();
+                    }
+                } else {
+                    // 0秒になる前に次のフェーズに移行
+                    timeLeft = 0; // 一瞬だけ0を表示しない
+                    
+                    // 合計残り時間も減らす
+                    if (remainingTotalSeconds > 0) {
+                        remainingTotalSeconds--;
+                        updateTotalTimeDisplay(remainingTotalSeconds);
+                    }
+                    
+                    // 次のフェーズに即座に移行
+                    clearInterval(timer);
+                    handleIntervalComplete();
+                }
+            }, 1000);
+        }
+
+        function handleIntervalComplete() {
+            if (currentSet < totalSets) {
+                currentSet++;
+                const isLastSetInCycle = currentSet === totalSets;
+                
+                // 休憩時間に入る（最終セットの前も休憩時間を入れる）
+                timeLeft = parseInt(restTimeInput.value);
+                totalTime = timeLeft;
+                playComplete(); // フェーズ開始時の音を変更
+                
+                // 休憩モードを表示
+                timerDisplay.style.color = '#3498db'; // 休憩時間は青色に変更
+                isRestPhase = true; // 休憩フェーズを設定
+                updateDisplay(); // 新しい時間を表示
+                
+                // 休憩時間のタイマーを開始
+                clearInterval(timer);
+                startRestTimerInterval();
+            } else if (currentCycle < totalCycles) {
+                // 次のサイクルへ
+                currentCycle++;
+                currentSet = 1;
+                
+                // サイクル間休憩を追加
+                const cycleRestTime = parseInt(cycleRestTimeInput.value);
+                if (cycleRestTime > 0) {
+                    // 休憩時間に入る
+                    timeLeft = cycleRestTime;
+                    totalTime = timeLeft;
+                    playComplete(); // フェーズ開始時の音を変更
+                    
+                    // 休憩モードを表示
+                    timerDisplay.style.color = '#3498db'; // 休憩時間は青色に変更
+                    isRestPhase = true; // 休憩フェーズを設定
+                    updateDisplay(); // 新しい時間を表示
+                    
+                    // 休憩時間のタイマーを開始
+                    clearInterval(timer);
+                    startRestTimerInterval();
+                    return;
+                }
+                
+                timeLeft = parseInt(intervalTimeInput.value);
+                totalTime = timeLeft;
+                playComplete(); // フェーズ開始時の音を変更
+                timerDisplay.style.color = '#e74c3c'; // 運動時間は赤色に変更
+                isRestPhase = false; // 運動フェーズを設定
+                updateDisplay(); // 新しい時間を表示
+                startTimerInterval();
+            } else {
+                // ワークアウト完了
+                clearInterval(timer);
+                startBtn.innerHTML = '<span class="button-icon">▶</span>START';
+                timerDisplay.classList.remove('running');
+                timerDisplay.style.color = '#00ff00'; // 元の色に戻す
+                isRunning = false;
+                isRestPhase = false; // リセット
+                
+                // Wake Lockを解除
+                releaseWakeLock();
+                
+                // 合計残り時間を0にする
+                remainingTotalSeconds = 0;
+                updateTotalTimeDisplay(0);
+                
+                // 最後のみ00:00を表示
+                timeLeft = 0;
+                isWorkoutCompleted = true; // ワークアウト完了フラグをセット
+                timerDisplay.textContent = '00:00';
+                
+                playComplete();
+                
+                // アラート表示前に00:00を確実に表示させる
+                setTimeout(() => {
+                    alert('ワークアウト完了！');
+                    // アラート後も00:00を維持
+                    isWorkoutCompleted = true;
+                    timerDisplay.textContent = '00:00';
+                    resetTimer(true); // 完了フラグを維持するオプションを追加
+                }, 100);
+            }
+        }
+
+        function resetTimer(keepCompletedState = false) {
+            // 通常のタイマーを停止
+            clearInterval(timer);
+            
+            // 準備カウントダウンも停止（存在する場合）
+            if (window.prepTimer) {
+                clearInterval(window.prepTimer);
+            }
+            
+            isRunning = false;
+            isRestPhase = false; // 休憩フェーズもリセット
+            
+            // Wake Lockを解除
+            releaseWakeLock();
+            
+            // 完了状態を維持するかどうか
+            if (!keepCompletedState) {
+                isWorkoutCompleted = false; // ワークアウト完了フラグをリセット
+                timeLeft = parseInt(intervalTimeInput.value);
+                // プログレスバーをリセットするためにtotalTimeを更新する
+                totalTime = timeLeft;
+                timerDisplay.style.color = '#e74c3c'; // 初期状態は運動時間の赤色
+                
+                // 設定している秒数を表示
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                // プログレスバーを確実に更新
+                updateProgressBar();
+            } else {
+                // 完了状態を維持
+                timerDisplay.textContent = '00:00';
+                timerDisplay.style.color = '#00ff00'; // 完了時の色を維持
+            }
+            
+            currentSet = 1;
+            currentCycle = 1;
+            startBtn.innerHTML = '<span class="button-icon">▶</span>START';
+            timerDisplay.classList.remove('running');
+            
+            // 合計時間もリセット
+            updateTotalTime();
+            
+            // 最初のスタートフラグをリセット
+            isFirstStart = true;
+            
+            // スタートボタンを有効化
+            startBtn.disabled = false;
+            startBtn.style.opacity = '1';
+            
+            // ステータス表示を更新
+            document.getElementById('currentSet').textContent = currentSet;
+            document.getElementById('totalSets').textContent = totalSets;
+            document.getElementById('currentCycle').textContent = currentCycle;
+            document.getElementById('totalCycles').textContent = totalCycles;
+            
+            // デバッグ出力
+            console.log("リセット完了 - 表示時間:", timerDisplay.textContent);
+        }
+
+        // レトロゲーム風の効果音
+        function playBeep() {
+            // オーディオキューに追加
+            audioQueue.push('beep');
+            processAudioQueue();
+        }
+        
+        // Web Audio APIを使ったビープ音の再生
+        function playBeepWithWebAudio() {
+            if (!audioInitialized || !audioContext) {
+                console.warn('Audio not initialized yet');
+                setTimeout(() => {
+                    isAudioProcessing = false;
+                    processAudioQueue();
+                }, 50);
+                return;
+            }
+            
+            try {
+                // Safariの場合は状態を確認して再開
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.1);
+                
+                // 音の再生が終了したら次の音をキューから処理
+                setTimeout(() => {
+                    isAudioProcessing = false;
+                    processAudioQueue();
+                }, 100);
+            } catch (e) {
+                console.error('Error playing sound with Web Audio API:', e);
+                setTimeout(() => {
+                    isAudioProcessing = false;
+                    processAudioQueue();
+                }, 50);
+            }
+        }
+
+        function playComplete() {
+            // オーディオキューに追加
+            audioQueue.push('complete');
+            processAudioQueue();
+        }
+        
+        // Web Audio APIを使った完了音の再生
+        function playCompleteWithWebAudio() {
+            if (!audioInitialized || !audioContext) {
+                console.warn('Audio not initialized yet');
+                setTimeout(() => {
+                    isAudioProcessing = false;
+                    processAudioQueue();
+                }, 50);
+                return;
+            }
+            
+            try {
+                // Safariの場合は状態を確認して再開
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                
+                oscillator.start();
+                setTimeout(() => {
+                    oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+                }, 100);
+                setTimeout(() => {
+                    oscillator.frequency.setValueAtTime(1320, audioContext.currentTime);
+                }, 200);
+                
+                oscillator.stop(audioContext.currentTime + 0.3);
+                
+                // 音の再生が終了したら次の音をキューから処理
+                setTimeout(() => {
+                    isAudioProcessing = false;
+                    processAudioQueue();
+                }, 300);
+            } catch (e) {
+                console.error('Error playing sound with Web Audio API:', e);
+                setTimeout(() => {
+                    isAudioProcessing = false;
+                    processAudioQueue();
+                }, 50);
+            }
+        }
+
+        // 準備カウントダウンを開始
+        function startPrepCountdown() {
+            // カウントダウン用の変数を設定
+            let countdown = prepCountdown;
+            
+            // 準備中の表示に変更
+            timerDisplay.style.color = '#f39c12'; // オレンジ色
+            timerDisplay.textContent = countdown.toString();
+            timerDisplay.classList.add('running');
+            
+            // スタートボタンを無効化
+            startBtn.disabled = true;
+            startBtn.style.opacity = '0.5';
+            
+            // カウントダウン用のタイマー変数をグローバルに保存（リセット時に停止できるように）
+            window.prepTimer = setInterval(() => {
+                countdown--;
+                
+                if (countdown > 0) {
+                    // カウントダウン表示を更新
+                    timerDisplay.textContent = countdown.toString();
+                    
+                    // 3秒以下になったら音を鳴らす
+                    if (countdown <= 3) {
+                        playBeep();
+                    }
+                } else {
+                    // カウントダウン終了
+                    clearInterval(window.prepTimer);
+                    
+                    // フラグを更新
+                    isFirstStart = false;
+                    
+                    // スタートボタンを有効化
+                    startBtn.disabled = false;
+                    startBtn.style.opacity = '1';
+                    
+                    // 通常のタイマーを開始
+                    startBtn.innerHTML = '<span class="button-icon">⏸</span>PAUSE';
+                    timerDisplay.style.color = '#e74c3c'; // 運動時間の色に戻す
+                    isRunning = true;
+                    
+                    // タイマー表示を更新
+                    timeLeft = parseInt(intervalTimeInput.value);
+                    totalTime = timeLeft;
+                    updateDisplay();
+                    
+                    // タイマーを開始
+                    playComplete(); // 開始音を鳴らす
+                    startTimerInterval();
+                }
+            }, 1000);
+        }
+
+        // 設定値保存/復元関数
+        function saveSettings() {
+            const settings = {
+                intervalTime: parseInt(intervalTimeInput.value) || 20,
+                restTime: parseInt(restTimeInput.value) || 10,
+                sets: parseInt(setsInput.value) || 8,
+                cycleRestTime: parseInt(cycleRestTimeInput.value) || 120,
+                cycles: parseInt(cyclesInput.value) || 1
+            };
+            
+            localStorage.setItem('hiitTimerSettings', JSON.stringify(settings));
+            
+            // 保存完了メッセージを表示
+            const savedMessage = document.createElement('div');
+            savedMessage.textContent = '設定を保存しました';
+            savedMessage.style.color = '#00ff00';
+            savedMessage.style.textAlign = 'center';
+            savedMessage.style.padding = '5px';
+            savedMessage.style.fontSize = '10px'; // 文字サイズを小さく
+            savedMessage.style.position = 'absolute'; // 絶対位置指定
+            savedMessage.style.right = '10px'; // 「保存」ボタンと同じ右寄せ
+            savedMessage.style.bottom = '45px'; // 合計時間の枠の真上
+            savedMessage.style.zIndex = '10'; // 他の要素より前面に表示
+            
+            // 既存のメッセージがあれば削除
+            const existingMessage = document.querySelector('.saved-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            savedMessage.className = 'saved-message';
+            document.querySelector('.settings').appendChild(savedMessage);
+            
+            // 3秒後にメッセージを消す
+            setTimeout(() => {
+                savedMessage.remove();
+            }, 3000);
+        }
+        
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('hiitTimerSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                
+                intervalTimeInput.value = settings.intervalTime || 20;
+                restTimeInput.value = settings.restTime || 10;
+                setsInput.value = settings.sets || 8;
+                cycleRestTimeInput.value = settings.cycleRestTime || 120;
+                cyclesInput.value = settings.cycles || 1;
+                
+                // 読み込んだ設定で合計時間を更新
+                updateTotalTime();
+                
+                // タイマー表示も更新
+                timeLeft = settings.intervalTime;
+                totalTime = timeLeft;
+                updateDisplay();
+                
+                console.log('設定を読み込みました:', settings);
+            }
+        }
+
+        // 初期化処理
+        function initialize() {
+            // Screen Wake Lock APIのサポート確認
+            checkWakeLockSupport();
+            
+            // 保存されている設定があれば読み込む
+            loadSettings();
+            
+            // プログレスバーのセグメントを作成
+            createProgressSegments();
+            
+            // 初期値を設定
+            initialIntervalTime = parseInt(intervalTimeInput.value); // 初期運動時間を保存
+            totalSets = parseInt(setsInput.value);
+            totalCycles = parseInt(cyclesInput.value);
+            currentSet = 1;
+            currentCycle = 1;
+            
+            document.getElementById('currentSet').textContent = currentSet;
+            document.getElementById('totalSets').textContent = totalSets;
+            document.getElementById('currentCycle').textContent = currentCycle;
+            document.getElementById('totalCycles').textContent = totalCycles;
+            
+            // 合計時間を計算して表示
+            updateTotalTime();
+            
+            // 初期表示の設定
+            timeLeft = parseInt(intervalTimeInput.value);
+            totalTime = timeLeft;
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            timerDisplay.style.color = '#e74c3c'; // 初期状態は運動時間の赤色
+            
+            // プログレスバーを更新
+            updateProgressBar();
+            
+            // デバッグ用 - 合計時間の計算を確認
+            const intervalTime = 20;
+            const restTime = 10;
+            const sets = 8;
+            const cycleRestTime = 120;
+            const cycles = 1;
+            
+            // 各サイクルの時間
+            const cycleTime = ((intervalTime + restTime) * (sets - 1) + intervalTime);
+            // サイクル間の休憩時間（最後のサイクルの後は休憩なし）
+            const cyclesRestTotal = cycleRestTime * (cycles - 1);
+            // 合計時間
+            const totalSeconds = (cycleTime * cycles) + cyclesRestTotal;
+            
+            console.log("デバッグ - 合計時間計算:", {
+                formula: `(((${intervalTime} + ${restTime}) * (${sets} - 1) + ${intervalTime}) * ${cycles}) + (${cycleRestTime} * (${cycles} - 1))`,
+                cycleTime: `${cycleTime}秒`,
+                cyclesRestTotal: `${cyclesRestTotal}秒`,
+                result: `${totalSeconds}秒 = ${Math.floor(totalSeconds / 60)}:${totalSeconds % 60}`
+            });
+            
+            // 強制的に合計時間を設定（デフォルト値の場合）
+            if (intervalTime === 20 && restTime === 10 && sets === 8 && cycles === 1) {
+                totalTimeDisplay.textContent = `合計時間: 00:03:50`;
+            }
+            
+            // 音声出力の初期化を試みる（ただしiOSでは効果がない場合がある）
+            try {
+                initAudio();
+            } catch (e) {
+                console.warn('初期化時のAudio初期化に失敗:', e);
+            }
+        }
+        
+        // イベントリスナーの設定
+        startBtn.addEventListener('click', function() {
+            // スタートボタンクリック時にAudioContextを初期化
+            initAudio();
+            startTimer();
+        });
+        
+        resetBtn.addEventListener('click', function() {
+            // リセットボタンクリック時にAudioContextを初期化
+            initAudio();
+            resetTimer();
+            // リセット後に設定している秒数を表示
+            timeLeft = parseInt(intervalTimeInput.value);
+            // リセット時にプログレスバーも初期化するためにtotalTimeを更新
+            totalTime = timeLeft;
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            // プログレスバーを明示的に更新
+            updateProgressBar();
+        });
+        
+        // 設定保存ボタンのイベントリスナー
+        document.getElementById('saveBtn').addEventListener('click', saveSettings);
+        
+        // 設定値変更時のイベントリスナー
+        intervalTimeInput.addEventListener('change', updateTotalTime);
+        intervalTimeInput.addEventListener('input', function() {
+            updateTotalTime();
+            // 運動時間が変更されたら、タイマー表示のみ更新
+            if (!isRunning) {
+                timeLeft = parseInt(intervalTimeInput.value) || 20;
+                // totalTimeは更新しない（プログレスバーの挙動に影響しないようにする）
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                // updateDisplay()は呼び出さない
+            }
+        });
+        restTimeInput.addEventListener('change', updateTotalTime);
+        restTimeInput.addEventListener('input', updateTotalTime);
+        
+        setsInput.addEventListener('change', updateTotalTime);
+        setsInput.addEventListener('input', function() {
+            updateTotalTime();
+            // セット数が変更されたら、表示も更新
+            if (!isRunning) {
+                totalSets = parseInt(setsInput.value) || 8;
+                document.getElementById('totalSets').textContent = totalSets;
+            }
+        });
+        
+        cycleRestTimeInput.addEventListener('change', updateTotalTime);
+        cycleRestTimeInput.addEventListener('input', updateTotalTime);
+        
+        cyclesInput.addEventListener('change', updateTotalTime);
+        cyclesInput.addEventListener('input', function() {
+            updateTotalTime();
+            // サイクル数が変更されたら、表示も更新
+            if (!isRunning) {
+                totalCycles = parseInt(cyclesInput.value) || 1;
+                document.getElementById('totalCycles').textContent = totalCycles;
+            }
+        });
+
+        // プログレスバーのセグメントを作成
+        function createProgressSegments() {
+            progressSegments.innerHTML = '';
+            for (let i = 0; i < SEGMENTS; i++) {
+                const segment = document.createElement('div');
+                segment.className = 'segment';
+                segment.style.width = `${100 / SEGMENTS}%`;
+                progressSegments.appendChild(segment);
+            }
+        }
+
+        // 休憩時間用のタイマー処理を分離
+        function startRestTimerInterval() {
+            clearInterval(timer);
+            
+            // タイマーの精度を向上させるために基準時間を記録
+            const startTime = Date.now();
+            let expectedTime = startTime;
+            
+            timer = setInterval(() => {
+                const currentTime = Date.now();
+                // 実際の経過時間と期待時間の差を補正
+                const drift = currentTime - expectedTime;
+                
+                // 次の期待時間を計算（前回の期待時間から正確に1秒後）
+                expectedTime += 1000;
+                
+                if (timeLeft > 1) { // 1秒以上ならカウントダウン
+                    timeLeft--;
+                    // 合計残り時間も減らす
+                    if (remainingTotalSeconds > 0) {
+                        remainingTotalSeconds--;
+                        updateTotalTimeDisplay(remainingTotalSeconds);
+                    }
+                    
+                    // 10の倍数の時に音を鳴らす
+                    if (timeLeft % 10 === 0 && timeLeft > 0) {
+                        playBeep();
+                    }
+                    
+                    // 3秒、2秒、1秒になったら音を鳴らす
+                    if (timeLeft === 3 || timeLeft === 2 || timeLeft === 1) {
+                        playBeep();
+                    }
+                    
+                    updateDisplay();
+                    
+                    // 著しいドリフトがある場合は補正
+                    if (Math.abs(drift) > 100) {
+                        clearInterval(timer);
+                        startRestTimerInterval();
+                    }
+                } else {
+                    // 休憩終了、次のセットへ
+                    timeLeft = 0; // 一瞬だけ0を表示しない
+                    
+                    // 合計残り時間も減らす
+                    if (remainingTotalSeconds > 0) {
+                        remainingTotalSeconds--;
+                        updateTotalTimeDisplay(remainingTotalSeconds);
+                    }
+                    
+                    // 次のフェーズに即座に移行
+                    clearInterval(timer);
+                    // 次のフェーズに移行
+                    timerDisplay.style.color = '#e74c3c'; // 運動時間は赤色に変更
+                    isRestPhase = false; // 運動フェーズを設定
+                    timeLeft = parseInt(intervalTimeInput.value);
+                    totalTime = timeLeft;
+                    playComplete(); // フェーズ開始時の音を変更
+                    updateDisplay(); // 新しい時間を表示
+                    startTimerInterval(); // 通常のタイマーに戻る
+                }
+            }, 1000);
+        }
+
+        // 初期化を実行
+        initialize();
+    </script>
+    
+    <!-- Service Workerの登録 -->
+    <script>
+        // Service Workerが利用可能か確認
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('service-worker.js')
+                .then(function(registration) {
+                    console.log('ServiceWorkerの登録成功: ', registration.scope);
+                })
+                .catch(function(error) {
+                    console.error('ServiceWorkerの登録失敗: ', error);
+                });
+            });
+        }
+    </script>
+</body>
+</html> 
