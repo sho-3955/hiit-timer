@@ -908,7 +908,12 @@
                     }
                     
                     // 3秒、2秒、1秒になったら音を鳴らす
-                    if (timeLeft === 3 || timeLeft === 2 || timeLeft === 1) {
+                    if (timeLeft === 3) {
+                        // 3秒のカウントダウン音は優先的に処理
+                        setTimeout(() => {
+                            playPriorityBeep();
+                        }, 0); // 即時実行するが、タイマーループの外で処理
+                    } else if (timeLeft === 2 || timeLeft === 1) {
                         playBeep();
                     }
                     
@@ -1077,6 +1082,18 @@
             
             // キューに追加
             audioQueue.push('beep');
+            processAudioQueue();
+        }
+        
+        // 優先的に再生する特別なカウントダウン音
+        function playPriorityBeep() {
+            // 音声初期化を確認
+            if (!audioInitialized && !pendingAudioInit) {
+                initAudio();
+            }
+            
+            // 優先度を高く設定してキューの先頭に追加
+            audioQueue.unshift('beep');
             processAudioQueue();
         }
         
@@ -1455,7 +1472,12 @@
                     }
                     
                     // 3秒、2秒、1秒になったら音を鳴らす
-                    if (timeLeft === 3 || timeLeft === 2 || timeLeft === 1) {
+                    if (timeLeft === 3) {
+                        // 3秒のカウントダウン音は優先的に処理
+                        setTimeout(() => {
+                            playPriorityBeep();
+                        }, 0); // 即時実行するが、タイマーループの外で処理
+                    } else if (timeLeft === 2 || timeLeft === 1) {
                         playBeep();
                     }
                     
