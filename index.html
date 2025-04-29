@@ -658,13 +658,65 @@
             const audioType = audioQueue.shift();
             
             if (audioType === 'beep') {
-                playActualBeep();
+                // ビープ音再生処理を高速化
+                playActualBeepFast();
             } else if (audioType === 'complete') {
                 playActualComplete();
             }
         }
         
-        // 実際のビープ音再生処理
+        // 高速化したビープ音再生処理
+        function playActualBeepFast() {
+            // AudioContextが利用可能ならWeb Audio APIで再生（最速）
+            if (audioInitialized && audioContext && audioContext.state === 'running') {
+                try {
+                    playBeepWithWebAudio();
+                    // Web Audioは非同期処理なので、完了したものとして次の音に進む
+                    setTimeout(() => {
+                        isAudioProcessing = false;
+                        processAudioQueue();
+                    }, 30); // より短い待機時間
+                    return;
+                } catch (e) {
+                    console.error('Web Audio beep failed:', e);
+                }
+            }
+            
+            // 次にAudio要素で試す
+            if (useAudioElement && beepSound) {
+                try {
+                    beepSound.currentTime = 0;
+                    beepSound.volume = 1.0;
+                    const promise = beepSound.play();
+                    if (promise !== undefined) {
+                        promise.then(() => {
+                            setTimeout(() => {
+                                isAudioProcessing = false;
+                                processAudioQueue();
+                            }, 30); // より短い待機時間
+                        }).catch(error => {
+                            isAudioProcessing = false;
+                            processAudioQueue();
+                        });
+                    } else {
+                        // promiseが返ってこない古いブラウザの場合
+                        setTimeout(() => {
+                            isAudioProcessing = false;
+                            processAudioQueue();
+                        }, 50);
+                    }
+                    return;
+                } catch (e) {
+                    console.error('Audio element play failed:', e);
+                }
+            }
+            
+            // どちらも失敗した場合
+            isAudioProcessing = false;
+            processAudioQueue();
+        }
+        
+        // 実際のビープ音再生処理（バックアップとして残す）
         function playActualBeep() {
             // まずAudio要素で試す（サイレントモードでも動作する可能性）
             if (useAudioElement && beepSound) {
@@ -706,47 +758,6 @@
                 isAudioProcessing = false;
                 processAudioQueue();
             }, 100);
-        }
-        
-        // 実際の完了音再生処理
-        function playActualComplete() {
-            if (useAudioElement && completeSound) {
-                try {
-                    completeSound.currentTime = 0;
-                    completeSound.volume = 1.0;
-                    const promise = completeSound.play();
-                    if (promise !== undefined) {
-                        promise.then(() => {
-                            console.log('Complete sound played successfully');
-                            setTimeout(() => {
-                                isAudioProcessing = false;
-                                processAudioQueue();
-                            }, 300); // 完了音は長いので300ms待機
-                        }).catch(error => {
-                            console.warn('Audio element play failed, falling back to Web Audio API:', error);
-                            playCompleteWithWebAudio();
-                            setTimeout(() => {
-                                isAudioProcessing = false;
-                                processAudioQueue();
-                            }, 300);
-                        });
-                    } else {
-                        setTimeout(() => {
-                            isAudioProcessing = false;
-                            processAudioQueue();
-                        }, 300);
-                    }
-                    return;
-                } catch (e) {
-                    console.error('Error playing sound with Audio element:', e);
-                }
-            }
-            
-            playCompleteWithWebAudio();
-            setTimeout(() => {
-                isAudioProcessing = false;
-                processAudioQueue();
-            }, 300);
         }
 
         // 合計時間を計算して表示
@@ -926,6 +937,13 @@
                 // 整数の残り時間を取得
                 const intTimeLeft = Math.ceil(preciseTL);
                 
+                // 3秒のカウントダウン音を先行して再生
+                if (preciseTL <= 3.3 && preciseTL > 3 && intTimeLeft === 4) {
+                    // 3秒音を先行して再生（表示が3秒になる前）
+                    playPriorityBeep();
+                    console.log("3秒音を先行再生: 実時間=" + preciseTL.toFixed(2));
+                }
+                
                 // 表示されている時間と異なる場合のみ更新
                 if (intTimeLeft !== timeLeft) {
                     timeLeft = intTimeLeft;
@@ -937,16 +955,13 @@
                     }
                     
                     // 10の倍数の時に音を鳴らす
-                    if (timeLeft % 10 === 0 && timeLeft > 0) {
+                    if (timeLeft % 10 === 0 && timeLeft > 0 && timeLeft !== 10) {
                         // 音が少し前に再生されるように
                         playBeep();
                     }
                     
                     // 3秒、2秒、1秒のカウントダウン音
-                    if (timeLeft === 3) {
-                        // タイマー表示より少し前に3秒音を再生
-                        playPriorityBeep();
-                    } else if (timeLeft === 2 || timeLeft === 1) {
+                    if (timeLeft === 2 || timeLeft === 1) {
                         playBeep();
                     }
                     
@@ -989,6 +1004,13 @@
                 // 整数の残り時間を取得
                 const intTimeLeft = Math.ceil(preciseTL);
                 
+                // 3秒のカウントダウン音を先行して再生
+                if (preciseTL <= 3.3 && preciseTL > 3 && intTimeLeft === 4) {
+                    // 3秒音を先行して再生（表示が3秒になる前）
+                    playPriorityBeep();
+                    console.log("3秒音を先行再生: 実時間=" + preciseTL.toFixed(2));
+                }
+                
                 // 表示されている時間と異なる場合のみ更新
                 if (intTimeLeft !== timeLeft) {
                     timeLeft = intTimeLeft;
@@ -1000,16 +1022,13 @@
                     }
                     
                     // 10の倍数の時に音を鳴らす
-                    if (timeLeft % 10 === 0 && timeLeft > 0) {
+                    if (timeLeft % 10 === 0 && timeLeft > 0 && timeLeft !== 10) {
                         // 音が少し前に再生されるように
                         playBeep();
                     }
                     
                     // 3秒、2秒、1秒のカウントダウン音
-                    if (timeLeft === 3) {
-                        // タイマー表示より少し前に3秒音を再生
-                        playPriorityBeep();
-                    } else if (timeLeft === 2 || timeLeft === 1) {
+                    if (timeLeft === 2 || timeLeft === 1) {
                         playBeep();
                     }
                     
@@ -1208,7 +1227,26 @@
                 initAudio();
             }
             
-            // 優先度を高く設定してキューの先頭に追加
+            // 直接再生を試みる（最大限早く再生するため）
+            try {
+                // AudioContextを優先的に使用
+                if (audioInitialized && audioContext && audioContext.state === 'running') {
+                    playBeepWithWebAudio();
+                    return;
+                }
+                
+                // 次にAudio要素を試す
+                if (useAudioElement && beepSound) {
+                    beepSound.currentTime = 0;
+                    beepSound.volume = 1.0;
+                    beepSound.play();
+                    return;
+                }
+            } catch (e) {
+                console.error('Priority beep failed, fallback to queue:', e);
+            }
+            
+            // 優先度を高く設定してキューの先頭に追加（フォールバック）
             audioQueue.unshift('beep');
             processAudioQueue();
         }
